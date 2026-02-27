@@ -4,24 +4,26 @@ const { transaction, query } = require('../models/db');
 // ============================================================
 // 檔案類型辨識
 // ============================================================
-const detectFileType = (filename, sheetNames) => {
-  const fn = filename.toLowerCase();
+const detectFileType = (filename, sheetNames) => {  
+  const fn = filename.toLowerCase();  
+  // 1. 先嘗試從檔名判斷  
+  if (fn.includes('技師績效') || fn.includes('工資明細')) return 'tech_performance';  
+  if (fn.includes('維修收入') || fn.includes('收入分類')) return 'repair_income';  
+  if (fn.includes('零件銷售') || fn.includes('零件明細')) return 'parts_sales';  
+  if (fn.includes('零配件比對') || fn.includes('零配件對照')) return 'parts_catalog';  
+  if (fn.includes('業務查詢')) return 'business_query';  
+  // 2. 如果檔名還是變亂碼，直接從 Excel 內部的 sheet 名稱推測 (最準確)  
+  if (sheetNames) {  
+    const names = sheetNames.join(',');  
+    if (names.includes('工資明細') || names.includes('技師績效')) return 'tech_performance';  
+    if (names.includes('維修收入') || names.includes('收入分類')) return 'repair_income';  
+    if (names.includes('零件銷售') || names.includes('零件明細')) return 'parts_sales';  
+    if (names.includes('零配件比對') || names.includes('零配件對照')) return 'parts_catalog';  
+    if (names.includes('業務查詢')) return 'business_query';  
+  }  
+  return null;  
+};  
 
-  if (fn.includes('技師績效') || fn.includes('工資明細')) return 'tech_performance';
-  if (fn.includes('維修收入') || fn.includes('收入分類')) return 'repair_income';
-  if (fn.includes('零件銷售') || fn.includes('零件明細')) return 'parts_sales';
-  if (fn.includes('零配件比對') || fn.includes('零配件對照')) return 'parts_catalog';
-  if (fn.includes('業務查詢')) return 'business_query';
-
-  // 從 sheet 名稱推測
-  if (sheetNames) {
-    const names = sheetNames.join(',');
-    if (names.includes('工資明細')) return 'tech_performance';
-    if (names.includes('維修收入')) return 'repair_income';
-  }
-
-  return null;
-};
 
 // 據點辨識
 const detectBranch = (filename) => {
