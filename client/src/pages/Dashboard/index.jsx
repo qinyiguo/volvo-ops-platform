@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import api from '../../services/api';
+import React, { useState, useMemo } from 'react';
 import SASummary from './SASummary';
 import SAEngine from './SAEngine';
 import SABodywork from './SABodywork';
@@ -16,10 +15,13 @@ const TABS = [
   { key: 'beauty', label: '美容統計', icon: '✨' },
 ];
 
-const now = new Date();
-const currentPeriod = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-
+// [FIX] currentPeriod 移入元件內，避免模組載入時計算一次就不再更新
 export default function Dashboard() {
+  const currentPeriod = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
   const [tab, setTab] = useState('sa_summary');
   const [period, setPeriod] = useState(currentPeriod);
   const [branch, setBranch] = useState('AMA');
