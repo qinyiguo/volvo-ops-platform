@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
 const { query } = require('../models/db');
 const { getReportData, getBranchOverviewStats } = require('../services/trackingEngine');
 
+// ===== 以下皆為公開檢視 API（免登入）=====
+
 // GET /api/dashboard/sa-summary — SA 綜合統計（追蹤品項 × SA）
-router.get('/sa-summary', authenticate, async (req, res) => {
+router.get('/sa-summary', async (req, res) => {
   try {
     const { period, branch } = req.query;
     const data = await getReportData('sa_summary', period, branch);
@@ -16,7 +17,7 @@ router.get('/sa-summary', authenticate, async (req, res) => {
 });
 
 // GET /api/dashboard/tech-summary — 技師統計（追蹤品項 × 技師）
-router.get('/tech-summary', authenticate, async (req, res) => {
+router.get('/tech-summary', async (req, res) => {
   try {
     const { period, branch } = req.query;
     const data = await getReportData('tech_summary', period, branch);
@@ -27,11 +28,10 @@ router.get('/tech-summary', authenticate, async (req, res) => {
 });
 
 // GET /api/dashboard/sa-engine — SA 接待業績（引擎）
-router.get('/sa-engine', authenticate, async (req, res) => {
+router.get('/sa-engine', async (req, res) => {
   try {
     const { period, branch } = req.query;
 
-    // 取得各 SA 的營收統計
     const revenueData = await query(`
       SELECT
         service_advisor,
@@ -51,7 +51,6 @@ router.get('/sa-engine', authenticate, async (req, res) => {
       ORDER BY service_advisor
     `, [period, branch]);
 
-    // 取得各 SA 的個人目標
     const targets = await query(`
       SELECT staff_name, metric_key, individual_target
       FROM v_individual_targets
@@ -62,7 +61,6 @@ router.get('/sa-engine', authenticate, async (req, res) => {
       branch
     ]);
 
-    // 組合目標與實績
     const targetMap = {};
     for (const t of targets.rows) {
       if (!targetMap[t.staff_name]) targetMap[t.staff_name] = {};
@@ -81,7 +79,7 @@ router.get('/sa-engine', authenticate, async (req, res) => {
 });
 
 // GET /api/dashboard/sa-bodywork — SA 接待業績（鈑烤）
-router.get('/sa-bodywork', authenticate, async (req, res) => {
+router.get('/sa-bodywork', async (req, res) => {
   try {
     const { period, branch } = req.query;
 
@@ -99,7 +97,6 @@ router.get('/sa-bodywork', authenticate, async (req, res) => {
       HAVING service_advisor IS NOT NULL AND service_advisor != ''
     `, [period, branch]);
 
-    // 鈑烤的追蹤品項
     const trackingData = await getReportData('bodywork', period, branch);
 
     res.json({ performance: data.rows, tracking: trackingData });
@@ -109,7 +106,7 @@ router.get('/sa-bodywork', authenticate, async (req, res) => {
 });
 
 // GET /api/dashboard/gro-sales — GRO 銷售
-router.get('/gro-sales', authenticate, async (req, res) => {
+router.get('/gro-sales', async (req, res) => {
   try {
     const { period, branch } = req.query;
 
@@ -125,7 +122,6 @@ router.get('/gro-sales', authenticate, async (req, res) => {
       HAVING sales_person IS NOT NULL AND sales_person != ''
     `, [period, branch]);
 
-    // GRO 目標
     const targets = await query(`
       SELECT staff_name, metric_key, individual_target
       FROM v_individual_targets
@@ -143,7 +139,7 @@ router.get('/gro-sales', authenticate, async (req, res) => {
 });
 
 // GET /api/dashboard/beauty — 美容統計
-router.get('/beauty', authenticate, async (req, res) => {
+router.get('/beauty', async (req, res) => {
   try {
     const { period, branch } = req.query;
 
@@ -166,14 +162,13 @@ router.get('/beauty', authenticate, async (req, res) => {
 });
 
 // GET /api/dashboard/branch-overview — 四廠整合
-router.get('/branch-overview', authenticate, async (req, res) => {
+router.get('/branch-overview', async (req, res) => {
   try {
     const { period } = req.query;
     const year = parseInt(period?.substring(0, 4));
     const month = parseInt(period?.substring(4, 6));
     const branches = ['AMA', 'AMC', 'AMD'];
 
-    // 各據點 KPI
     const kpiData = {};
     for (const branch of branches) {
       const r = await query(`
@@ -193,14 +188,12 @@ router.get('/branch-overview', authenticate, async (req, res) => {
       kpiData[branch] = r.rows[0] || {};
     }
 
-    // AM 加總
     kpiData['AM'] = {};
     const keys = Object.keys(kpiData['AMA'] || {});
     for (const k of keys) {
       kpiData['AM'][k] = branches.reduce((sum, b) => sum + parseFloat(kpiData[b]?.[k] || 0), 0);
     }
 
-    // 目標
     const targets = await query(`
       SELECT branch, metric_key, target_value
       FROM annual_targets
@@ -213,7 +206,6 @@ router.get('/branch-overview', authenticate, async (req, res) => {
       targetMap[t.branch][t.metric_key] = parseFloat(t.target_value);
     }
 
-    // 去年實績
     const lastYear = await query(`
       SELECT branch, metric_key, actual_value
       FROM last_year_actuals
@@ -226,10 +218,8 @@ router.get('/branch-overview', authenticate, async (req, res) => {
       lastYearMap[l.branch][l.metric_key] = parseFloat(l.actual_value);
     }
 
-    // 追蹤品項
     const trackingStats = await getBranchOverviewStats(period);
 
-    // 電油車統計
     const evStats = {};
     for (const branch of branches) {
       const r = await query(`
