@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './styles.css';
 import api from './services/api';
 import Layout from './components/Layout';
@@ -20,6 +20,7 @@ export const useAuth = () => useContext(AuthContext);
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -33,6 +34,17 @@ function App() {
       setLoading(false);
     }
   }, []);
+
+  // [FIX] 監聽 api.js 發出的 auth:unauthorized 事件，走 React Router 跳轉
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+      api.setToken(null);
+      navigate('/login');
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, [navigate]);
 
   const login = async (username, password) => {
     const res = await api.login(username, password);
