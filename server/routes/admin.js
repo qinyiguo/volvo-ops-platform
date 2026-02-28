@@ -1,36 +1,29 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
-const { authenticate, adminOnly } = require('../middleware/auth');
 const { query } = require('../models/db');
 
 // ======================== 使用者管理 ========================
-router.get('/users', authenticate, adminOnly, async (req, res) => {
+router.get('/users', async (req, res) => {
   try {
     const result = await query('SELECT id, username, display_name, role, branch, is_active, created_at FROM users ORDER BY id');
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/users', authenticate, adminOnly, async (req, res) => {
+router.post('/users', async (req, res) => {
   try {
-    const { username, password, display_name, role, branch } = req.body;
-    const hash = await bcrypt.hash(password, 10);
+    const { username, display_name, role, branch } = req.body;
     const result = await query(
-      'INSERT INTO users (username, password_hash, display_name, role, branch) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-      [username, hash, display_name, role || 'user', branch]
+      "INSERT INTO users (username, password_hash, display_name, role, branch) VALUES ($1, 'unused', $2, $3, $4) RETURNING id",
+      [username, display_name, role || 'user', branch]
     );
     res.json({ id: result.rows[0].id });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/users/:id', authenticate, adminOnly, async (req, res) => {
+router.put('/users/:id', async (req, res) => {
   try {
-    const { display_name, role, branch, is_active, password } = req.body;
-    if (password) {
-      const hash = await bcrypt.hash(password, 10);
-      await query('UPDATE users SET password_hash=$1, updated_at=NOW() WHERE id=$2', [hash, req.params.id]);
-    }
+    const { display_name, role, branch, is_active } = req.body;
     await query(
       'UPDATE users SET display_name=$1, role=$2, branch=$3, is_active=$4, updated_at=NOW() WHERE id=$5',
       [display_name, role, branch, is_active, req.params.id]
@@ -40,7 +33,7 @@ router.put('/users/:id', authenticate, adminOnly, async (req, res) => {
 });
 
 // ======================== 人員據點對照 ========================
-router.get('/staff-map', authenticate, async (req, res) => {
+router.get('/staff-map', async (req, res) => {
   try {
     const { branch, staff_type } = req.query;
     const result = await query(`
@@ -52,7 +45,7 @@ router.get('/staff-map', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/staff-map', authenticate, adminOnly, async (req, res) => {
+router.post('/staff-map', async (req, res) => {
   try {
     const { staff_name, staff_code, staff_type, branch, department } = req.body;
     const result = await query(`
@@ -67,7 +60,7 @@ router.post('/staff-map', authenticate, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/staff-map/:id', authenticate, adminOnly, async (req, res) => {
+router.put('/staff-map/:id', async (req, res) => {
   try {
     const { staff_name, staff_code, staff_type, branch, department, is_active } = req.body;
     await query(`
@@ -79,7 +72,7 @@ router.put('/staff-map/:id', authenticate, adminOnly, async (req, res) => {
 });
 
 // ======================== 零件對照表 ========================
-router.get('/parts-catalog', authenticate, async (req, res) => {
+router.get('/parts-catalog', async (req, res) => {
   try {
     const { search, page = 1, limit = 50 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
@@ -96,7 +89,7 @@ router.get('/parts-catalog', authenticate, async (req, res) => {
 });
 
 // ======================== 工時主檔 ========================
-router.get('/work-hours', authenticate, async (req, res) => {
+router.get('/work-hours', async (req, res) => {
   try {
     const { search } = req.query;
     let sql = 'SELECT * FROM work_hour_master';
@@ -112,14 +105,14 @@ router.get('/work-hours', authenticate, async (req, res) => {
 });
 
 // ======================== 追蹤品項設定 ========================
-router.get('/tracking-items', authenticate, async (req, res) => {
+router.get('/tracking-items', async (req, res) => {
   try {
     const result = await query('SELECT * FROM tracking_items ORDER BY sort_order, id');
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/tracking-items', authenticate, adminOnly, async (req, res) => {
+router.post('/tracking-items', async (req, res) => {
   try {
     const {
       item_name, item_category, count_method, match_rules,
@@ -142,7 +135,7 @@ router.post('/tracking-items', authenticate, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/tracking-items/:id', authenticate, adminOnly, async (req, res) => {
+router.put('/tracking-items/:id', async (req, res) => {
   try {
     const {
       item_name, item_category, count_method, match_rules,
@@ -165,7 +158,7 @@ router.put('/tracking-items/:id', authenticate, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/tracking-items/:id', authenticate, adminOnly, async (req, res) => {
+router.delete('/tracking-items/:id', async (req, res) => {
   try {
     await query('UPDATE tracking_items SET is_active = false, updated_at = NOW() WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -173,14 +166,14 @@ router.delete('/tracking-items/:id', authenticate, adminOnly, async (req, res) =
 });
 
 // ======================== 促銷獎金參數 ========================
-router.get('/promo-rules', authenticate, async (req, res) => {
+router.get('/promo-rules', async (req, res) => {
   try {
     const result = await query('SELECT * FROM promo_rules ORDER BY applicable_types, discount_min');
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/promo-rules', authenticate, adminOnly, async (req, res) => {
+router.post('/promo-rules', async (req, res) => {
   try {
     const { rule_name, applicable_types, discount_min, discount_max, bonus_rate, effective_from, effective_to } = req.body;
     const result = await query(`
@@ -191,7 +184,7 @@ router.post('/promo-rules', authenticate, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/promo-rules/:id', authenticate, adminOnly, async (req, res) => {
+router.put('/promo-rules/:id', async (req, res) => {
   try {
     const { rule_name, applicable_types, discount_min, discount_max, bonus_rate, is_active, effective_from, effective_to } = req.body;
     await query(`
