@@ -18,7 +18,9 @@ class ApiService {
     const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
     if (res.status === 401) {
       this.setToken(null);
-      window.location.href = '/login';
+      // [FIX] 使用自訂事件通知 App 層，而非 window.location.href 硬跳轉
+      // 這樣可以走 React Router，避免整頁重載導致 state 遺失
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       throw new Error('認證已過期');
     }
     if (!res.ok) {
