@@ -51,7 +51,7 @@ const calculateItemStats = async (item, period, branch, groupBy = 'sales_person'
 
   // 處理 parts_sales 來源的規則
   if (partsSalesRules.length > 0) {
-    const conditions = partsSalesRules.map(rule => buildPartsSalesCondition(rule)).filter(Boolean);
+    const { conditions, values, nextIdx } = buildPartsSalesConditions(partsSalesRules, 3);
     if (conditions.length > 0) {
       const groupCol = groupBy === 'sales_person' ? 'sales_person' : 'pickup_person';
       const countExpr = item.count_method === '金額' ? 'SUM(sale_price_untaxed)' :
@@ -67,7 +67,7 @@ const calculateItemStats = async (item, period, branch, groupBy = 'sales_person'
         GROUP BY ${groupCol}
         HAVING ${groupCol} IS NOT NULL AND ${groupCol} != ''
       `;
-      const r = await query(sql, [period, branch || null]);
+      const r = await query(sql, [period, branch || null, ...values]);
       results = results.concat(r.rows);
     }
   }
@@ -104,30 +104,64 @@ const calculateItemStats = async (item, period, branch, groupBy = 'sales_person'
   return Object.entries(merged).map(([person_name, value]) => ({ person_name, value }));
 };
 
-// 建立 parts_sales 的 WHERE 條件
-const buildPartsSalesCondition = (rule) => {
-  switch (rule.match_type) {
-    case 'category_code':
-      return rule.category_code ? `category_code = '${escapeSql(rule.category_code)}'` : null;
-    case 'function_code':
-      return rule.function_code ? `function_code = '${escapeSql(rule.function_code)}'` : null;
-    case 'both':
-      if (rule.category_code && rule.function_code) {
-        return `(category_code = '${escapeSql(rule.category_code)}' AND function_code = '${escapeSql(rule.function_code)}')`;
-      }
-      return null;
-    case 'part_number':
-      if (rule.part_number) {
-        // 支援 prefix match（如 7013%）
-        if (rule.part_number.includes('%')) {
-          return `part_number LIKE '${escapeSql(rule.part_number)}'`;
+/**
+ * 建立 parts_sales 的 WHERE 條件（參數化查詢，防止 SQL injection）
+ * @param {Array} rules - match_rules 陣列
+ * @param {number} startIdx - 參數起始索引（$1, $2 可能已被 period/branch 佔用）
+ * @returns {{ conditions: string[], values: any[], nextIdx: number }}
+ */
+const buildPartsSalesConditions = (rules, startIdx = 1) => {
+  const conditions = [];
+  const values = [];
+  let idx = startIdx;
+
+  // 欄位白名單驗證
+  const ALLOWED_MATCH_TYPES = ['category_code', 'function_code', 'both', 'part_number'];
+
+  for (const rule of rules) {
+    if (!ALLOWED_MATCH_TYPES.includes(rule.match_type)) continue;
+
+    switch (rule.match_type) {
+      case 'category_code':
+        if (rule.category_code) {
+          conditions.push(`category_code = $${idx}`);
+          values.push(String(rule.category_code));
+          idx++;
         }
-        return `part_number = '${escapeSql(rule.part_number)}'`;
-      }
-      return null;
-    default:
-      return null;
+        break;
+
+      case 'function_code':
+        if (rule.function_code) {
+          conditions.push(`function_code = $${idx}`);
+          values.push(String(rule.function_code));
+          idx++;
+        }
+        break;
+
+      case 'both':
+        if (rule.category_code && rule.function_code) {
+          conditions.push(`(category_code = $${idx} AND function_code = $${idx + 1})`);
+          values.push(String(rule.category_code), String(rule.function_code));
+          idx += 2;
+        }
+        break;
+
+      case 'part_number':
+        if (rule.part_number) {
+          // 支援 prefix match（如 7013%）
+          if (String(rule.part_number).includes('%')) {
+            conditions.push(`part_number LIKE $${idx}`);
+          } else {
+            conditions.push(`part_number = $${idx}`);
+          }
+          values.push(String(rule.part_number));
+          idx++;
+        }
+        break;
+    }
   }
+
+  return { conditions, values, nextIdx: idx };
 };
 
 // 取得完整報表資料（某報表的所有品項 × 所有人）
@@ -177,9 +211,6 @@ const getBranchOverviewStats = async (period) => {
 
   return result;
 };
-
-// 防 SQL injection
-const escapeSql = (val) => String(val).replace(/'/g, "''");
 
 module.exports = {
   getActiveTrackingItems,
