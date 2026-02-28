@@ -10,20 +10,18 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 // POST /api/upload/files — 多檔上傳
 router.post('/files', authenticate, adminOnly, upload.array('files', 8), async (req, res) => {
   try {
-const results = [];
-for (const file of req.files) {
-  try {
-    file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
-    const result = await processUpload(file.buffer, file.originalname, req.user.username);
-    results.push({ filename: file.originalname, status: 'success', ...result });
-  } catch (err) {
-    results.push({ filename: file.originalname, status: 'error', error: err.message });
-    await query(`
-      INSERT INTO upload_history (file_name, file_type, status, error_message, uploaded_by)
-      VALUES ($1, 'unknown', 'error', $2, $3)
-    `, [file.originalname, err.message, req.user.username]);
-  }
-}
+    const results = [];
+    for (const file of req.files) {
+      try {
+        file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
+        const result = await processUpload(file.buffer, file.originalname, req.user.username);
+        results.push({ filename: file.originalname, status: 'success', ...result });
+      } catch (err) {
+        results.push({ filename: file.originalname, status: 'error', error: err.message });
+        await query(`
+          INSERT INTO upload_history (file_name, file_type, status, error_message, uploaded_by)
+          VALUES ($1, 'unknown', 'error', $2, $3)
+        `, [file.originalname, err.message, req.user.username]);
       }
     }
     res.json({ results });
