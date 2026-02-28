@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const XLSX = require('xlsx');
-const { authenticate } = require('../middleware/auth');
 const { query } = require('../models/db');
 
+// ===== 公開匯出 API（免登入）=====
+
 // GET /api/export/:type
-router.get('/:type', authenticate, async (req, res) => {
+router.get('/:type', async (req, res) => {
   try {
     const { type } = req.params;
     const { period, branch } = req.query;
@@ -43,7 +44,6 @@ router.get('/:type', authenticate, async (req, res) => {
         return res.status(400).json({ error: `未知的匯出類型: ${type}` });
     }
 
-    // 產生 Excel
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, 'Data');
