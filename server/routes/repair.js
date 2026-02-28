@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
 const { query } = require('../models/db');
 
+// ===== 公開檢視 API（免登入）=====
+
 // GET /api/repair/list — 明細查詢
-router.get('/list', authenticate, async (req, res) => {
+router.get('/list', async (req, res) => {
   try {
     const { period, branch, account_type, service_advisor, page = 1, limit = 50 } = req.query;
     const conditions = [];
@@ -34,7 +35,7 @@ router.get('/list', authenticate, async (req, res) => {
 });
 
 // GET /api/repair/summary — 帳類彙總
-router.get('/summary', authenticate, async (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
     const { period, branch } = req.query;
     const result = await query(`
