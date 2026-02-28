@@ -24,7 +24,10 @@ export default function Login() {
   return (
     <div className="login-page">
       <div className="login-box">
-        <h1>🚗 VOLVO 營運平台</h1>
+        <h1>🔐 管理者登入</h1>
+        <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>
+          此頁面僅供管理者使用
+        </p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>帳號</label>
