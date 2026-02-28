@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import api from '../services/api';
 
-const now = new Date();
-const currentPeriod = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-
 export default function PartsQuery() {
+  // [FIX] currentPeriod 移入元件內
+  const currentPeriod = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
   const [period, setPeriod] = useState(currentPeriod);
   const [branch, setBranch] = useState('');
   const [department, setDepartment] = useState('');
