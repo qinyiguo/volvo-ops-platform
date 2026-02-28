@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
 const { query } = require('../models/db');
 
+// ===== 公開檢視 API（免登入）=====
+
 // GET /api/parts/sales
-router.get('/sales', authenticate, async (req, res) => {
+router.get('/sales', async (req, res) => {
   try {
     const { period, branch, department, part_type, page = 1, limit = 50 } = req.query;
     const conditions = [];
@@ -34,7 +35,7 @@ router.get('/sales', authenticate, async (req, res) => {
 });
 
 // GET /api/parts/summary
-router.get('/summary', authenticate, async (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
     const { period, branch } = req.query;
     const result = await query(`
