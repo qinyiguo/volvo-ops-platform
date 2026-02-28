@@ -35,7 +35,7 @@ function App() {
     }
   }, []);
 
-  // [FIX] 監聽 api.js 發出的 auth:unauthorized 事件，走 React Router 跳轉
+  // 監聽 auth:unauthorized 事件
   useEffect(() => {
     const handleUnauthorized = () => {
       setUser(null);
@@ -55,6 +55,7 @@ function App() {
   const logout = () => {
     api.setToken(null);
     setUser(null);
+    navigate('/dashboard');
   };
 
   if (loading) return <div className="loading"><div className="spinner" /></div>;
@@ -62,17 +63,23 @@ function App() {
   return (
     <AuthContext.Provider value={{ user, login, logout }}>
       <Routes>
-        <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-        <Route element={user ? <Layout /> : <Navigate to="/login" />}>
+        {/* 登入頁：已登入則跳管理首頁 */}
+        <Route path="/login" element={user ? <Navigate to="/upload" /> : <Login />} />
+
+        {/* 所有頁面共用 Layout，由 Layout 根據登入狀態決定 sidebar 內容 */}
+        <Route element={<Layout />}>
+          {/* ===== 公開檢視（免登入）===== */}
           <Route path="/" element={<Navigate to="/dashboard" />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/branch-overview" element={<BranchOverview />} />
-          <Route path="/upload" element={<Upload />} />
           <Route path="/repair" element={<RepairQuery />} />
           <Route path="/tech" element={<TechQuery />} />
           <Route path="/parts" element={<PartsQuery />} />
-          <Route path="/targets" element={<TargetSetup />} />
-          <Route path="/admin" element={<AdminPanel />} />
+
+          {/* ===== 管理功能（需登入）===== */}
+          <Route path="/upload" element={user ? <Upload /> : <Navigate to="/login" />} />
+          <Route path="/targets" element={user ? <TargetSetup /> : <Navigate to="/login" />} />
+          <Route path="/admin" element={user ? <AdminPanel /> : <Navigate to="/login" />} />
         </Route>
       </Routes>
     </AuthContext.Provider>
