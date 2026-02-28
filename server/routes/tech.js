@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
 const { query } = require('../models/db');
 
+// ===== 公開檢視 API（免登入）=====
+
 // GET /api/tech/list
-router.get('/list', authenticate, async (req, res) => {
+router.get('/list', async (req, res) => {
   try {
     const { period, branch, tech_name, page = 1, limit = 50 } = req.query;
     const conditions = [];
@@ -33,7 +34,7 @@ router.get('/list', authenticate, async (req, res) => {
 });
 
 // GET /api/tech/ranking — 技師排名
-router.get('/ranking', authenticate, async (req, res) => {
+router.get('/ranking', async (req, res) => {
   try {
     const { period, branch } = req.query;
     const result = await query(`
