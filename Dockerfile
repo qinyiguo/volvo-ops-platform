@@ -6,7 +6,7 @@
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/client
 COPY client/package*.json ./
-RUN npm ci
+RUN npm install
 COPY client/ ./
 RUN npm run build
 
@@ -16,7 +16,7 @@ WORKDIR /app/server
 
 # Copy server files and install dependencies
 COPY server/package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 COPY server/ ./
 
