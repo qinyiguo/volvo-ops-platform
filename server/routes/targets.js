@@ -1,10 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, adminOnly } = require('../middleware/auth');
 const { query, transaction } = require('../models/db');
 
 // GET /api/targets/annual
-router.get('/annual', authenticate, async (req, res) => {
+router.get('/annual', async (req, res) => {
   try {
     const { year, branch } = req.query;
     const result = await query(`
@@ -19,20 +18,20 @@ router.get('/annual', authenticate, async (req, res) => {
 });
 
 // POST /api/targets/annual — 批次寫入年度目標
-router.post('/annual', authenticate, adminOnly, async (req, res) => {
+router.post('/annual', async (req, res) => {
   try {
-    const { targets } = req.body; // [{ year, branch, month, metric_key, metric_name, target_value }]
+    const { targets } = req.body;
     await transaction(async (client) => {
       for (const t of targets) {
         await client.query(`
           INSERT INTO annual_targets (year, branch, month, metric_key, metric_name, target_value, updated_by)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          VALUES ($1, $2, $3, $4, $5, $6, 'system')
           ON CONFLICT (year, branch, month, metric_key) DO UPDATE SET
             metric_name = EXCLUDED.metric_name,
             target_value = EXCLUDED.target_value,
             updated_by = EXCLUDED.updated_by,
             updated_at = NOW()
-        `, [t.year, t.branch, t.month, t.metric_key, t.metric_name, t.target_value, req.user.username]);
+        `, [t.year, t.branch, t.month, t.metric_key, t.metric_name, t.target_value]);
       }
     });
     res.json({ success: true, count: targets.length });
@@ -42,7 +41,7 @@ router.post('/annual', authenticate, adminOnly, async (req, res) => {
 });
 
 // GET /api/targets/monthly-weights
-router.get('/monthly-weights', authenticate, async (req, res) => {
+router.get('/monthly-weights', async (req, res) => {
   try {
     const { year, branch } = req.query;
     const result = await query(`
@@ -55,9 +54,9 @@ router.get('/monthly-weights', authenticate, async (req, res) => {
 });
 
 // POST /api/targets/monthly-weights
-router.post('/monthly-weights', authenticate, adminOnly, async (req, res) => {
+router.post('/monthly-weights', async (req, res) => {
   try {
-    const { weights } = req.body; // [{ year, branch, month, weight }]
+    const { weights } = req.body;
     await transaction(async (client) => {
       for (const w of weights) {
         await client.query(`
@@ -74,7 +73,7 @@ router.post('/monthly-weights', authenticate, adminOnly, async (req, res) => {
 });
 
 // GET /api/targets/staff-weights
-router.get('/staff-weights', authenticate, async (req, res) => {
+router.get('/staff-weights', async (req, res) => {
   try {
     const { year, branch, staff_type } = req.query;
     const result = await query(`
@@ -89,7 +88,7 @@ router.get('/staff-weights', authenticate, async (req, res) => {
 });
 
 // POST /api/targets/staff-weights
-router.post('/staff-weights', authenticate, adminOnly, async (req, res) => {
+router.post('/staff-weights', async (req, res) => {
   try {
     const { weights } = req.body;
     await transaction(async (client) => {
@@ -109,7 +108,7 @@ router.post('/staff-weights', authenticate, adminOnly, async (req, res) => {
 });
 
 // GET /api/targets/preview — 預覽個人目標分配
-router.get('/preview', authenticate, async (req, res) => {
+router.get('/preview', async (req, res) => {
   try {
     const { year, month, branch } = req.query;
     const result = await query(`
@@ -123,8 +122,8 @@ router.get('/preview', authenticate, async (req, res) => {
   }
 });
 
-// CRUD /api/targets/last-year
-router.get('/last-year', authenticate, async (req, res) => {
+// GET /api/targets/last-year
+router.get('/last-year', async (req, res) => {
   try {
     const { year, branch } = req.query;
     const result = await query(`
@@ -137,7 +136,7 @@ router.get('/last-year', authenticate, async (req, res) => {
   }
 });
 
-router.post('/last-year', authenticate, adminOnly, async (req, res) => {
+router.post('/last-year', async (req, res) => {
   try {
     const { actuals } = req.body;
     await transaction(async (client) => {
