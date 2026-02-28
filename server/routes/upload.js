@@ -17,12 +17,13 @@ for (const file of req.files) {
     const result = await processUpload(file.buffer, file.originalname, req.user.username);
     results.push({ filename: file.originalname, status: 'success', ...result });
   } catch (err) {
-        results.push({ filename: file.originalname, status: 'error', error: err.message });
-        // 記錄失敗
-        await query(`
-          INSERT INTO upload_history (file_name, file_type, status, error_message, uploaded_by)
-          VALUES ($1, 'unknown', 'error', $2, $3)
-        `, [file.originalname, err.message, req.user.username]);
+    results.push({ filename: file.originalname, status: 'error', error: err.message });
+    await query(`
+      INSERT INTO upload_history (file_name, file_type, status, error_message, uploaded_by)
+      VALUES ($1, 'unknown', 'error', $2, $3)
+    `, [file.originalname, err.message, req.user.username]);
+  }
+}
       }
     }
     res.json({ results });
