@@ -1,28 +1,10 @@
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 class ApiService {
-  constructor() {
-    this.token = localStorage.getItem('token');
-  }
-
-  setToken(token) {
-    this.token = token;
-    if (token) localStorage.setItem('token', token);
-    else localStorage.removeItem('token');
-  }
-
   async request(path, options = {}) {
     const headers = { 'Content-Type': 'application/json', ...options.headers };
-    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
 
     const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-    if (res.status === 401) {
-      this.setToken(null);
-      // [FIX] 使用自訂事件通知 App 層，而非 window.location.href 硬跳轉
-      // 這樣可以走 React Router，避免整頁重載導致 state 遺失
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-      throw new Error('認證已過期');
-    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new Error(err.error || '請求失敗');
@@ -39,20 +21,14 @@ class ApiService {
   put(path, data) { return this.request(path, { method: 'PUT', body: JSON.stringify(data) }); }
   del(path) { return this.request(path, { method: 'DELETE' }); }
 
-  // 檔案上傳
+  // 檔案上傳（不帶 Content-Type，讓瀏覽器自動設定 multipart boundary）
   async upload(path, files) {
     const formData = new FormData();
     for (const file of files) formData.append('files', file);
-    const headers = {};
-    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-    const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', headers, body: formData });
+    const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', body: formData });
     if (!res.ok) throw new Error('上傳失敗');
     return res.json();
   }
-
-  // Auth
-  login(username, password) { return this.post('/auth/login', { username, password }); }
-  getMe() { return this.get('/auth/me'); }
 
   // Upload
   uploadFiles(files) { return this.upload('/upload/files', files); }
