@@ -10,16 +10,13 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 // POST /api/upload/files — 多檔上傳
 router.post('/files', authenticate, adminOnly, upload.array('files', 8), async (req, res) => {
   try {
-    const results = [];
-      try {  
-        // 👇 加上這一行，把 Multer 預設的 latin1 亂碼強制轉回 utf8 中文  
-        file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');  
-          
-        const result = await processUpload(file.buffer, file.originalname, req.user.username);  
-        results.push({ filename: file.originalname, status: 'success', ...result });  
-
-        results.push({ filename: file.originalname, status: 'success', ...result });
-      } catch (err) {
+const results = [];
+for (const file of req.files) {
+  try {
+    file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    const result = await processUpload(file.buffer, file.originalname, req.user.username);
+    results.push({ filename: file.originalname, status: 'success', ...result });
+  } catch (err) {
         results.push({ filename: file.originalname, status: 'error', error: err.message });
         // 記錄失敗
         await query(`
