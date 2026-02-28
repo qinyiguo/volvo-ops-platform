@@ -235,6 +235,21 @@ const runFormulaEngine = async (client, fileType, period, branch) => {
 
   // B. 延保判定（零件銷售中 7013 開頭）
   if (fileType === 'parts_sales') {
+    // [FIX] 先重設所有標記為預設值，避免重跑時殘留舊標記
+    if (branch) {
+      await client.query(`
+        UPDATE parts_sales
+        SET is_warranty_ext = false, is_pirelli = false, promo_bonus = 0
+        WHERE period = $1 AND branch = $2
+      `, [period, branch]);
+    } else {
+      await client.query(`
+        UPDATE parts_sales
+        SET is_warranty_ext = false, is_pirelli = false, promo_bonus = 0
+        WHERE period = $1
+      `, [period]);
+    }
+
     const r = await client.query(`
       UPDATE parts_sales SET is_warranty_ext = true
       WHERE period = $1 AND ($2::text IS NULL OR branch = $2)
@@ -339,8 +354,13 @@ const processUpload = async (buffer, filename, uploadedBy) => {
 
       case 'parts_sales':
         if (!period) throw new Error('零件銷售需要期間（從檔名辨識）');
-        // 零件銷售是三廠合併，可能沒有單一 branch
-        await client.query('DELETE FROM parts_sales WHERE period = $1', [period]);
+        // [FIX] 根據 branch 限縮刪除範圍，避免多據點分開上傳時互相覆蓋
+        if (branch) {
+          await client.query('DELETE FROM parts_sales WHERE period = $1 AND branch = $2', [period, branch]);
+        } else {
+          // 整合檔（無 branch）才刪整月
+          await client.query('DELETE FROM parts_sales WHERE period = $1', [period]);
+        }
         rows = parsePartsSales(workbook, branch, period);
         rowCount = await insertPartsSales(client, rows);
         break;
